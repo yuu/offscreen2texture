@@ -3,6 +3,8 @@
 #include <string>
 #include <array>
 
+#include <unistd.h> // usleep
+
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <GLES2/gl2.h>
@@ -14,23 +16,16 @@
 
 const GLchar* vertex_code = R"(
 precision mediump float;
-attribute mediump vec4 a_Position;
-attribute mediump vec2 a_TexCoord;
-varying mediump vec2 v_TexCoord;
+attribute mediump vec4 vPosition;
 
 void main(void) {
-  gl_Position = a_Position;
-  v_TexCoord  = a_TexCoord;
+  gl_Position = vPosition;
 }
 )";
 
 const GLchar* fragment_code = R"(
-varying mediump vec2 v_TexCoord;
-uniform mediump sampler2D tex;
-
 void main() {
-mediump vec2 uv = v_TexCoord.xy;
-gl_FragColor = texture2D(tex, uv);
+gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
 }
 )";
 
@@ -112,6 +107,8 @@ GLuint CreateGLProgram(GLuint shaderVtx, GLuint shaderFrg) {
 }
 
 int main() {
+    int w = 640;
+    int h = 480;
     EGLNativeDisplayType native_display_ = XOpenDisplay(NULL);
     Window root_win = DefaultRootWindow(static_cast<Display*>(native_display_));
 
@@ -159,8 +156,8 @@ int main() {
     };
     eglChooseConfig(display, attrs, &auto_config, 1, nullptr);
 
-    EGLSurface pbuf_surface = eglCreatePbufferSurface(display, auto_config, nullptr);
-	// EGLSurface pbuf_surface = eglCreateWindowSurface(display, auto_config, native_window_, nullptr);
+    // EGLSurface pbuf_surface = eglCreatePbufferSurface(display, auto_config, nullptr);
+	EGLSurface pbuf_surface = eglCreateWindowSurface(display, auto_config, native_window_, nullptr);
 
     EGLint ctxAttr[] = {
         EGL_CONTEXT_CLIENT_VERSION,	2,
@@ -168,42 +165,64 @@ int main() {
     };
     EGLContext ctx = eglCreateContext(display, auto_config, nullptr, ctxAttr);
     eglMakeCurrent(display, pbuf_surface, pbuf_surface, ctx);
+    glViewport(0, 0, w, h);
 
+    GLuint vertex = CreateGLShader(vertex_code, GL_VERTEX_SHADER);
+    GLuint fragment = CreateGLShader(fragment_code, GL_FRAGMENT_SHADER);
+    GLuint shader_prg = CreateGLProgram(vertex, fragment);
+    glUseProgram(shader_prg);
+
+    GLuint loc_vtxcoord = glGetAttribLocation(shader_prg, "vPosition");
+
+    glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    const GLfloat vertices[] = {
+        0.0f,  0.5f,
+        -0.5f, -0.5f,
+        0.5f, -0.5f
+    };
+    glEnableVertexAttribArray(loc_vtxcoord);
+    glVertexAttribPointer(loc_vtxcoord, 2, GL_FLOAT, GL_FALSE, 0, vertices);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+
+    // eglSwapBuffers(display, pbuf_surface);
+    // glUseProgram(0);
+
+#if 0
     GLuint fbo = 0;
     glGenFramebuffers(1, &fbo);
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
-    GLuint rfb = 0;
-    glGenRenderbuffers(1, &rfb);
-    glBindRenderbuffer(GL_RENDERBUFFER, rfb);
-    constexpr int w = 1024;
-    constexpr int h = 768;
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_RGB565, w, h);
+    GLuint rtex = 0;
+    glGenTextures(1, &rtex);
+    glBindTexture(GL_TEXTURE_2D, rtex);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
 
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, rfb);
+    GLuint depth_rfb = 0;
+    glGenRenderbuffers(1, &depth_rfb);
+    glBindRenderbuffer(GL_RENDERBUFFER, depth_rfb);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEGLPTH_COMPONENT16, w, h);
 
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, rtex, 0);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth_rfb);
+
+    // glClearColor(1, 0, 0, 1);
+    // glClear(GL_COLOR_BUFFER_BIT);
     GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
     if (status != GL_FRAMEBUFFER_COMPLETE) {
         printf("Problem with OpenGL framebuffer after specifying color render buffer: %x\n", status);
     }
 
-    GLuint vertex = CreateGLShader(vertex_code, GL_VERTEX_SHADER);
-    GLuint fragment = CreateGLShader(fragment_code, GL_FRAGMENT_SHADER);
-    GLuint shader_prg = CreateGLProgram(vertex, fragment);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-    GLuint loc_vtxcoord = glGetAttribLocation(shader_prg, "a_Position");
-    GLuint loc_texcoord = glGetAttribLocation(shader_prg, "a_TexCoord");
-
-    glEnableVertexAttribArray(loc_vtxcoord);
-    glEnableVertexAttribArray(loc_texcoord);
-
-    glVertexAttribPointer(loc_vtxcoord, 2, GL_FLOAT, GL_FALSE, 0, vtxcoord.data());
-    glVertexAttribPointer(loc_texcoord, 2, GL_FLOAT, GL_FALSE, 0, texcoord.data());
-
-    glUseProgram(shader_prg);
-    glUniform1i(glGetUniformLocation(shader_prg, "tex"), 0);
-    glUseProgram(0);
-
-
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+#endif
+    while (true) {
+        sleep(1);
+    }
     return 0;
 }
