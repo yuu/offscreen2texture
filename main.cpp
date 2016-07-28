@@ -73,12 +73,13 @@ int main(int argc, char *argv[])
     glGenFramebuffers(1, &fboId);
     glBindFramebuffer(GL_FRAMEBUFFER, fboId);
 
+#if 1 // 1: render to texture, 0: render to render buffer
     // create a texture object
-    /*  GLuint textureId;
-        glGenTextures(1, &textureId);
-        glBindTexture(GL_TEXTURE_2D, textureId);
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    GLuint textureId;
+    glGenTextures(1, &textureId);
+    glBindTexture(GL_TEXTURE_2D, textureId);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     //GL_LINEAR_MIPMAP_LINEAR
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -89,7 +90,9 @@ int main(int argc, char *argv[])
     // attach the texture to FBO color attachment point
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
     GL_TEXTURE_2D, textureId, 0);
-    */
+
+#else
+
     qDebug() << glGetError();
     GLuint renderBuffer;
     glGenRenderbuffers(1, &renderBuffer);
@@ -119,6 +122,7 @@ int main(int argc, char *argv[])
     } else {
         printf("FBO creation succedded\n");
     }
+#endif
 
     glClearColor(0.0,1.0,0.0,1.0);
     glClear(GL_COLOR_BUFFER_BIT);
