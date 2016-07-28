@@ -29,20 +29,6 @@ gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
 }
 )";
 
-std::array<GLfloat, 8> vtxcoord = {
-    1.0f, -1.0f,
-    1.0f,  1.0f,
-    -1.0f, -1.0f,
-    -1.0f,  1.0f,
-};
-
-std::array<GLfloat, 8> texcoord = {
-    1.0f, 1.0f,
-    1.0f, 0.0f,
-    0.0f, 1.0f,
-    0.0f, 0.0f,
-};
-
 GLuint CreateGLShader(const GLchar* shaderCode, GLenum shaderType) {
     GLuint shader = 0;
     GLint stat = 0;
@@ -106,6 +92,24 @@ GLuint CreateGLProgram(GLuint shaderVtx, GLuint shaderFrg) {
     return program;
 }
 
+void Draw(GLuint prog, GLuint vtxcoord) {
+    const GLfloat vertices[] = {
+        0.0f,  0.5f,
+        -0.5f, -0.5f,
+        0.5f, -0.5f
+    };
+    glViewport(0, 0, 640, 480);
+    glUseProgram(prog);
+
+    glVertexAttribPointer(vtxcoord, 2, GL_FLOAT, GL_FALSE, 0, vertices);
+    glEnableVertexAttribArray(vtxcoord);
+
+    glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+}
+
 int main() {
     int w = 640;
     int h = 480;
@@ -154,7 +158,10 @@ int main() {
         EGL_DEPTH_SIZE, 24,
         EGL_NONE
     };
-    eglChooseConfig(display, attrs, &auto_config, 1, nullptr);
+
+    EGLint conf;
+    eglGetConfigs(display, nullptr, 0, &conf);
+    eglChooseConfig(display, attrs, &auto_config, 1, &conf);
 
     // EGLSurface pbuf_surface = eglCreatePbufferSurface(display, auto_config, nullptr);
 	EGLSurface pbuf_surface = eglCreateWindowSurface(display, auto_config, native_window_, nullptr);
@@ -165,29 +172,12 @@ int main() {
     };
     EGLContext ctx = eglCreateContext(display, auto_config, nullptr, ctxAttr);
     eglMakeCurrent(display, pbuf_surface, pbuf_surface, ctx);
-    glViewport(0, 0, w, h);
 
     GLuint vertex = CreateGLShader(vertex_code, GL_VERTEX_SHADER);
     GLuint fragment = CreateGLShader(fragment_code, GL_FRAGMENT_SHADER);
     GLuint shader_prg = CreateGLProgram(vertex, fragment);
     glUseProgram(shader_prg);
-
     GLuint loc_vtxcoord = glGetAttribLocation(shader_prg, "vPosition");
-
-    glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    const GLfloat vertices[] = {
-        0.0f,  0.5f,
-        -0.5f, -0.5f,
-        0.5f, -0.5f
-    };
-    glEnableVertexAttribArray(loc_vtxcoord);
-    glVertexAttribPointer(loc_vtxcoord, 2, GL_FLOAT, GL_FALSE, 0, vertices);
-    glDrawArrays(GL_TRIANGLES, 0, 3);
-
-    // eglSwapBuffers(display, pbuf_surface);
-    // glUseProgram(0);
 
 #if 0
     GLuint fbo = 0;
@@ -222,6 +212,8 @@ int main() {
     glBindTexture(GL_TEXTURE_2D, 0);
 #endif
     while (true) {
+        Draw(shader_prg, loc_vtxcoord);
+        eglSwapBuffers(display, pbuf_surface);
         sleep(1);
     }
     return 0;
