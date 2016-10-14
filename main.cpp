@@ -163,8 +163,8 @@ int main() {
     eglGetConfigs(display, nullptr, 0, &conf);
     eglChooseConfig(display, attrs, &auto_config, 1, &conf);
 
-    // EGLSurface pbuf_surface = eglCreatePbufferSurface(display, auto_config, nullptr);
-	EGLSurface pbuf_surface = eglCreateWindowSurface(display, auto_config, native_window_, nullptr);
+    EGLSurface pbuf_surface = eglCreatePbufferSurface(display, auto_config, nullptr);
+	// EGLSurface pbuf_surface = eglCreateWindowSurface(display, auto_config, native_window_, nullptr);
 
     EGLint ctxAttr[] = {
         EGL_CONTEXT_CLIENT_VERSION,	2,
@@ -194,19 +194,15 @@ int main() {
     GLuint depth_rfb = 0;
     glGenRenderbuffers(1, &depth_rfb);
     glBindRenderbuffer(GL_RENDERBUFFER, depth_rfb);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEGLPTH_COMPONENT16, w, h);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, w, h);
 
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, rtex, 0);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth_rfb);
 
-    // glClearColor(1, 0, 0, 1);
-    // glClear(GL_COLOR_BUFFER_BIT);
     GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
     if (status != GL_FRAMEBUFFER_COMPLETE) {
         printf("Problem with OpenGL framebuffer after specifying color render buffer: %x\n", status);
     }
-
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindTexture(GL_TEXTURE_2D, 0);
